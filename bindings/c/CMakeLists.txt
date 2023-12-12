@@ -99,8 +99,10 @@ if(WIN32)
   set_property(SOURCE ${asm_file} PROPERTY LANGUAGE ASM_MASM)
 endif()
 
+set(ENABLE_DOCTESTS ON CACHE BOOL "Enable doctests")
+
 # The tests don't build on windows
-if(NOT WIN32)
+if(ENABLE_DOCTESTS AND NOT WIN32)
   set(MAKO_SRCS
     test/mako/admin_server.hpp
     test/mako/admin_server.cpp
@@ -219,6 +221,7 @@ if(NOT WIN32)
 
   target_include_directories(fdb_c_unit_tests_impl PUBLIC ${CMAKE_CURRENT_SOURCE_DIR} ${CMAKE_CURRENT_BINARY_DIR}/foundationdb/)
   target_include_directories(fdb_c_unit_tests_version_510 PUBLIC ${CMAKE_BINARY_DIR}/flow/include)
+if(ENABLE_DOCTESTS)
   target_link_libraries(fdb_c_setup_tests PRIVATE fdb_c Threads::Threads doctest)
   target_link_libraries(fdb_c_unit_tests_impl PRIVATE fdb_c Threads::Threads fdbclient rapidjson doctest)
   target_link_libraries(fdb_c_unit_tests_version_510 PRIVATE fdb_c Threads::Threads doctest)
@@ -226,6 +229,7 @@ if(NOT WIN32)
   target_link_libraries(disconnected_timeout_unit_tests PRIVATE fdb_c Threads::Threads doctest)
   target_link_libraries(fdb_c_client_config_tester PRIVATE SimpleOpt fdb_cpp fdb_c fdbclient Threads::Threads fmt::fmt)
   target_include_directories(fdb_c_client_config_tester PUBLIC ${CMAKE_CURRENT_SOURCE_DIR} ${CMAKE_CURRENT_BINARY_DIR}/foundationdb/)
+endif()
 
   # do not set RPATH for mako
   set_property(TARGET mako PROPERTY SKIP_BUILD_RPATH TRUE)

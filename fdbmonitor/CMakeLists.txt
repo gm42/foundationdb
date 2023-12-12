@@ -62,4 +62,7 @@ endif()
 add_custom_target(generate_profile
   COMMAND ${CMAKE_BINARY_DIR}/contrib/generate_profile.sh ${CMAKE_BINARY_DIR})
 
-add_dependencies(generate_profile fdbmonitor fdbserver mako fdbcli)
+add_dependencies(generate_profile fdbmonitor fdbserver fdbcli)
+if(ENABLE_DOCTESTS)
+  add_dependencies(generate_profile mako)
+endif()
