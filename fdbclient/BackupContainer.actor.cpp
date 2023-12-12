@@ -36,11 +36,13 @@
 #include "fdbrpc/AsyncFileReadAhead.actor.h"
 #include "fdbrpc/simulator.h"
 #include "flow/Platform.h"
+#ifdef BUILD_S3_BACKUP
 #include "fdbclient/AsyncFileS3BlobStore.actor.h"
+#include "fdbclient/BackupContainerS3BlobStore.h"
+#endif
 #include "fdbclient/BackupContainerAzureBlobStore.h"
 #include "fdbclient/BackupContainerFileSystem.h"
 #include "fdbclient/BackupContainerLocalDirectory.h"
-#include "fdbclient/BackupContainerS3BlobStore.h"
 #include "fdbclient/Status.h"
 #include "fdbclient/SystemData.h"
 #include "fdbclient/ReadYourWrites.h"
@@ -250,7 +252,9 @@ std::vector<std::string> IBackupContainer::getURLFormats() {
 		BackupContainerAzureBlobStore::getURLFormat(),
 #endif
 		BackupContainerLocalDirectory::getURLFormat(),
+#ifdef BUILD_S3_BACKUP
 		BackupContainerS3BlobStore::getURLFormat(),
+#endif
 	};
 }
 
@@ -268,7 +272,9 @@ Reference<IBackupContainer> IBackupContainer::openContainer(const std::string& u
 		StringRef u(url);
 		if (u.startsWith("file://"_sr)) {
 			r = makeReference<BackupContainerLocalDirectory>(url, encryptionKeyFileName);
-		} else if (u.startsWith("blobstore://"_sr)) {
+		}
+#ifdef BUILD_S3_BACKUP
+		else if (u.startsWith("blobstore://"_sr)) {
 			std::string resource;
 
 			// The URL parameters contain blobstore endpoint tunables as well as possible backup-specific options.
@@ -283,6 +289,7 @@ Reference<IBackupContainer> IBackupContainer::openContainer(const std::string& u
 					throw backup_invalid_url();
 			r = makeReference<BackupContainerS3BlobStore>(bstore, resource, backupParams, encryptionKeyFileName);
 		}
+#endif
 #ifdef BUILD_AZURE_BACKUP
 		else if (u.startsWith("azure://"_sr)) {
 			u.eat("azure://"_sr);
@@ -318,6 +325,7 @@ Reference<IBackupContainer> IBackupContainer::openContainer(const std::string& u
 
 // Get a list of URLS to backup containers based on some a shorter URL.  This function knows about some set of supported
 // URL types which support this sort of backup discovery.
+#ifdef BUILD_S3_BACKUP
 ACTOR Future<std::vector<std::string>> listContainers_impl(std::string baseURL, Optional<std::string> proxy) {
 	try {
 		StringRef u(baseURL);
@@ -370,6 +378,33 @@ ACTOR Future<std::vector<std::string>> listContainers_impl(std::string baseURL, 
 		throw;
 	}
 }
+#else
+ACTOR Future<std::vector<std::string>> listContainers_impl(std::string baseURL, Optional<std::string> proxy) {
+	try {
+		StringRef u(baseURL);
+		if (u.startsWith("file://"_sr)) {
+			std::vector<std::string> results = wait(BackupContainerLocalDirectory::listURLs(baseURL));
+			return results;
+		} else {
+			IBackupContainer::lastOpenError = "invalid URL prefix";
+			throw backup_invalid_url();
+		}
+
+	} catch (Error& e) {
+		if (e.code() == error_code_actor_cancelled)
+			throw;
+
+		TraceEvent m(SevWarn, "BackupContainer");
+		m.error(e);
+		m.detail("Description", "Invalid backup container URL prefix.  See help.");
+		m.detail("URL", baseURL);
+		if (e.code() == error_code_backup_invalid_url)
+			m.detail("LastOpenError", IBackupContainer::lastOpenError);
+
+		throw;
+	}
+}
+#endif
 
 Future<std::vector<std::string>> IBackupContainer::listContainers(const std::string& baseURL,
                                                                   const Optional<std::string>& proxy) {

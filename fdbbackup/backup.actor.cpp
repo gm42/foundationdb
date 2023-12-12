@@ -44,7 +44,9 @@
 #include "fdbclient/KeyBackedTypes.h"
 #include "fdbclient/IKnobCollection.h"
 #include "fdbclient/RunTransaction.actor.h"
+#ifdef  BUILD_S3_BACKUP
 #include "fdbclient/S3BlobStore.h"
+#endif
 #include "fdbclient/json_spirit/json_spirit_writer_template.h"
 
 #include "flow/Platform.h"
@@ -1521,6 +1523,30 @@ DBType getDBType(std::string dbType) {
 	return enBackupType;
 }
 
+JSONDoc& getTotalBlobStats() {
+	static double last_ts = 0;
+#ifdef  BUILD_S3_BACKUP
+	static S3BlobStoreEndpoint::Stats last_stats;
+	S3BlobStoreEndpoint::Stats current_stats = S3BlobStoreEndpoint::s_stats;
+	JSONDoc blobstats = o.create("blob_stats");
+	blobstats.create("total") = current_stats.getJSON();
+	S3BlobStoreEndpoint::Stats diff = current_stats - last_stats;
+	json_spirit::mObject diffObj = diff.getJSON();
+	if (last_ts > 0)
+		diffObj["bytes_per_second"] = double(current_stats.bytes_sent - last_stats.bytes_sent) / (now() - last_ts);
+	blobstats.create("recent") = diffObj;
+	last_stats = current_stats;
+#endif
+	last_ts = now();
+
+	JSONDoc totalBlobStats = layerRoot.subDoc("blob_recent_io");
+#ifdef  BUILD_S3_BACKUP
+	for (auto& p : diffObj)
+		totalBlobStats.create(p.first + ".$sum") = p.second;
+#endif
+	return totalBlobStats;
+}
+
 ACTOR Future<std::string> getLayerStatus(Reference<ReadYourWritesTransaction> tr,
                                          std::string name,
                                          std::string id,
@@ -1559,22 +1585,7 @@ ACTOR Future<std::string> getLayerStatus(Reference<ReadYourWritesTransaction> tr
 	o.create("configured_workers") = CLIENT_KNOBS->BACKUP_TASKS_PER_AGENT;
 
 	if (exe == ProgramExe::AGENT) {
-		static S3BlobStoreEndpoint::Stats last_stats;
-		static double last_ts = 0;
-		S3BlobStoreEndpoint::Stats current_stats = S3BlobStoreEndpoint::s_stats;
-		JSONDoc blobstats = o.create("blob_stats");
-		blobstats.create("total") = current_stats.getJSON();
-		S3BlobStoreEndpoint::Stats diff = current_stats - last_stats;
-		json_spirit::mObject diffObj = diff.getJSON();
-		if (last_ts > 0)
-			diffObj["bytes_per_second"] = double(current_stats.bytes_sent - last_stats.bytes_sent) / (now() - last_ts);
-		blobstats.create("recent") = diffObj;
-		last_stats = current_stats;
-		last_ts = now();
-
-		JSONDoc totalBlobStats = layerRoot.subDoc("blob_recent_io");
-		for (auto& p : diffObj)
-			totalBlobStats.create(p.first + ".$sum") = p.second;
+		JSONDoc totalBlobStats = getTotalBlobStats();
 
 		state FileBackupAgent fba;
 		state std::vector<KeyBackedTag> backupTags = wait(getAllBackupTags(tr, snapshot));

@@ -22,7 +22,9 @@
 #include "fdbclient/BackupContainerAzureBlobStore.h"
 #include "fdbclient/BackupContainerFileSystem.h"
 #include "fdbclient/BackupContainerLocalDirectory.h"
+#ifdef BUILD_S3_BACKUP
 #include "fdbclient/BackupContainerS3BlobStore.h"
+#endif
 #include "fdbclient/JsonBuilder.h"
 #include "flow/StreamCipher.h"
 #include "flow/UnitTest.h"
@@ -1513,7 +1515,9 @@ Reference<BackupContainerFileSystem> BackupContainerFileSystem::openContainerFS(
 		StringRef u(url);
 		if (u.startsWith("file://"_sr)) {
 			r = makeReference<BackupContainerLocalDirectory>(url, encryptionKeyFileName);
-		} else if (u.startsWith("blobstore://"_sr)) {
+		}
+#ifdef BUILD_S3_BACKUP
+		else if (u.startsWith("blobstore://"_sr)) {
 			std::string resource;
 
 			// The URL parameters contain blobstore endpoint tunables as well as possible backup-specific options.
@@ -1528,6 +1532,7 @@ Reference<BackupContainerFileSystem> BackupContainerFileSystem::openContainerFS(
 					throw backup_invalid_url();
 			r = makeReference<BackupContainerS3BlobStore>(bstore, resource, backupParams, encryptionKeyFileName);
 		}
+#endif
 #ifdef BUILD_AZURE_BACKUP
 		else if (u.startsWith("azure://"_sr)) {
 			u.eat("azure://"_sr);

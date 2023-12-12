@@ -2,8 +2,6 @@ set(FDBCLIENT_SRCS
   ActorLineageProfiler.h
   ActorLineageProfiler.cpp
   AnnotateActor.cpp
-  AsyncFileS3BlobStore.actor.cpp
-  AsyncFileS3BlobStore.actor.h
   AsyncTaskThread.actor.cpp
   AsyncTaskThread.h
   Atomic.h
@@ -16,8 +14,6 @@ set(FDBCLIENT_SRCS
   BackupContainerFileSystem.h
   BackupContainerLocalDirectory.actor.cpp
   BackupContainerLocalDirectory.h
-  BackupContainerS3BlobStore.actor.cpp
-  BackupContainerS3BlobStore.h
   ClientBooleanParams.cpp
   ClientBooleanParams.h
   BlobWorkerInterface.h
@@ -111,7 +107,6 @@ set(FDBCLIENT_SRCS
   RunTransaction.actor.h
   RYWIterator.cpp
   RYWIterator.h
-  S3BlobStore.actor.cpp
   Schemas.cpp
   Schemas.h
   ServerKnobCollection.cpp
@@ -171,6 +166,18 @@ set(options_srcs ${CMAKE_CURRENT_BINARY_DIR}/FDBOptions.g.cpp)
 
 vexillographer_compile(TARGET fdboptions LANG cpp OUT ${CMAKE_CURRENT_BINARY_DIR}/FDBOptions.g
   OUTPUT ${CMAKE_CURRENT_BINARY_DIR}/FDBOptions.g.h ${CMAKE_CURRENT_BINARY_DIR}/FDBOptions.g.cpp)
+
+set(BUILD_S3_BACKUP ON CACHE BOOL "Build S3 backup client")
+if(BUILD_S3_BACKUP)
+  add_compile_definitions(BUILD_S3_BACKUP)
+  set(FDBCLIENT_SRCS
+    ${FDBCLIENT_SRCS}
+  AsyncFileS3BlobStore.actor.cpp
+  AsyncFileS3BlobStore.actor.h
+  BackupContainerS3BlobStore.actor.cpp
+  BackupContainerS3BlobStore.h
+  S3BlobStore.actor.cpp)
+endif()
 
 set(BUILD_AZURE_BACKUP OFF CACHE BOOL "Build Azure backup client")
 if(BUILD_AZURE_BACKUP)
