@@ -51,6 +51,18 @@ Once you have your dependencies, you can run cmake and then build:
 1. `cmake -G Ninja <PATH_TO_FOUNDATIONDB_DIRECTORY>`
 1. `ninja # If this crashes it probably ran out of memory. Try ninja -j1`
 
+### Compiling the arm64/aarch64 Debian packages via Docker builder image
+
+You can compile FoundationDB (albeit with some disabled functionality) for the arm64/aarch64 target architecture,
+and generate `.deb` packages, by using the following script:
+
+```bash
+./generate-arm64-deb-packages.sh
+```
+
+The packages will be found under `build_output/packages/` once operation completes.
+
+
 ### Language Bindings
 
 The language bindings that are supported by cmake will have a corresponding
