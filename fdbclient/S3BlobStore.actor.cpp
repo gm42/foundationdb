@@ -25,9 +25,11 @@
 #include "fdbclient/sha1/SHA1.h"
 #include <time.h>
 #include <iomanip>
+#ifndef TLS_DISABLED
 #include <openssl/sha.h>
 #include <openssl/evp.h>
 #include <openssl/hmac.h>
+#endif
 #include <boost/algorithm/string/split.hpp>
 #include <boost/algorithm/string/classification.hpp>
 #include <boost/algorithm/string.hpp>
@@ -740,11 +742,15 @@ ACTOR Future<Reference<HTTP::Response>> doRequest_impl(Reference<S3BlobStoreEndp
 			// refreshed when a new connection is established and setAuthHeaders() would need the updated secret.
 			if (bstore->credentials.present() && !bstore->credentials.get().securityToken.empty())
 				headers["x-amz-security-token"] = bstore->credentials.get().securityToken;
+#ifndef TLS_DISABLED
 			if (CLIENT_KNOBS->HTTP_REQUEST_AWS_V4_HEADER) {
 				bstore->setV4AuthHeaders(verb, resource, headers);
 			} else {
 				bstore->setAuthHeaders(verb, resource, headers);
 			}
+#else
+			bstore->setAuthHeaders(verb, resource, headers);
+#endif
 
 			remoteAddress = rconn.conn->getPeerAddress();
 			wait(bstore->requestRate->getAllowance(1));
@@ -1168,6 +1174,7 @@ std::string S3BlobStoreEndpoint::hmac_sha1(Credentials const& creds, std::string
 	return SHA1::from_string(kopad);
 }
 
+#ifndef TLS_DISABLED
 std::string sha256_hex(std::string str) {
 	unsigned char hash[SHA256_DIGEST_LENGTH];
 	SHA256_CTX sha256;
@@ -1216,7 +1223,9 @@ std::string hmac_sha256(std::string key, std::string msg) {
 	}
 	return (ss.str());
 }
+#endif
 
+#ifndef TLS_DISABLED
 // Date and Time parameters are used for unit testing
 void S3BlobStoreEndpoint::setV4AuthHeaders(std::string const& verb,
                                            std::string const& resource,
@@ -1321,6 +1330,7 @@ void S3BlobStoreEndpoint::setV4AuthHeaders(std::string const& verb,
 	                                  "SignedHeaders=" + signedHeaders + ", " + "Signature=" + signature;
 	headers["Authorization"] = authorizationHeader;
 }
+#endif
 
 void S3BlobStoreEndpoint::setAuthHeaders(std::string const& verb, std::string const& resource, HTTP::Headers& headers) {
 	if (!credentials.present()) {
@@ -1619,6 +1629,7 @@ Future<Void> S3BlobStoreEndpoint::finishMultiPartUpload(std::string const& bucke
 	return finishMultiPartUpload_impl(Reference<S3BlobStoreEndpoint>::addRef(this), bucket, object, uploadID, parts);
 }
 
+#ifndef TLS_DISABLED
 TEST_CASE("/backup/s3/v4headers") {
 	S3BlobStoreEndpoint::Credentials creds{ "AKIAIOSFODNN7EXAMPLE", "wJalrXUtnFEMI/K7MDENG/bPxRfiCYEXAMPLEKEY", "" }
 	// GET without query parameters
@@ -1671,3 +1682,4 @@ TEST_CASE("/backup/s3/v4headers") {
 
 	return Void();
 }
+#endif

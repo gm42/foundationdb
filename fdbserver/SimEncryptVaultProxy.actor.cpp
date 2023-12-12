@@ -31,6 +31,10 @@
 #include "flow/UnitTest.h"
 #include "flow/actorcompiler.h" // This must be the last #include.
 
+#ifndef  AES_256_KEY_LENGTH
+#define  AES_256_KEY_LENGTH 32
+#endif
+
 struct SimEncryptKeyCtx {
 	SimEncryptKeyId id;
 	SimEncryptKey key;
