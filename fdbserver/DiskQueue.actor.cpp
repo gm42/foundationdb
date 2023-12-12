@@ -515,7 +515,7 @@ public:
 		files[1].popped += popped - pop0;
 	}
 
-	// Set the starting point of the ring buffer, i.e., the first useful page to be read (and poped)
+	// Set the starting point of the ring buffer, i.e., the first useful page to be read (and popped)
 	ACTOR static Future<Void> setPoppedPage(RawDiskQueue_TwoFiles* self, int file, int64_t page, int64_t debugSeq) {
 		self->files[file].popped = page * sizeof(Page);
 		if (file)
