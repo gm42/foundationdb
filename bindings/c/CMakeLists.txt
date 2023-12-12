@@ -77,8 +77,10 @@ if(WIN32)
   set_property(SOURCE ${asm_file} PROPERTY LANGUAGE ASM_MASM)
 endif()
 
+set(ENABLE_DOCTESTS ON CACHE BOOL "Enable doctests")
+
 # The tests don't build on windows
-if(NOT WIN32)
+if(ENABLE_DOCTESTS AND NOT WIN32)
   set(MAKO_SRCS
     test/mako/mako.c
     test/mako/mako.h
@@ -156,6 +158,7 @@ if(NOT WIN32)
   target_link_libraries(fdb_c_txn_size_test PRIVATE fdb_c Threads::Threads)
   target_link_libraries(fdb_c_client_memory_test PRIVATE fdb_c Threads::Threads)
 
+if(ENABLE_DOCTESTS)
   add_dependencies(fdb_c_setup_tests doctest)
   add_dependencies(fdb_c_unit_tests doctest)
   add_dependencies(fdb_c_unit_tests_version_510 doctest)
@@ -169,6 +172,7 @@ if(NOT WIN32)
   target_link_libraries(fdb_c_unit_tests_version_510 PRIVATE fdb_c Threads::Threads)
   target_link_libraries(trace_partial_file_suffix_test PRIVATE fdb_c Threads::Threads flow)
   target_link_libraries(disconnected_timeout_unit_tests PRIVATE fdb_c Threads::Threads)
+endif()
 
 if(USE_SANITIZER)
   target_link_libraries(fdb_c_api_tester PRIVATE fdb_c toml11_target Threads::Threads fmt::fmt boost_asan)
